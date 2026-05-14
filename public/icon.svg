@@ -1,0 +1,21 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="42" y1="28" x2="214" y2="228" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="0.48" stop-color="#6366F1"/>
+      <stop offset="1" stop-color="#A855F7"/>
+    </linearGradient>
+    <linearGradient id="spark" x1="72" y1="60" x2="186" y2="190" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#BAE6FD"/>
+    </linearGradient>
+    <filter id="shadow" x="8" y="10" width="240" height="240" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#0F172A" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect x="28" y="24" width="200" height="208" rx="56" fill="url(#bg)" filter="url(#shadow)"/>
+  <path d="M128 49L144.9 101.1L199 101.1L155.2 132.9L171.9 185L128 152.8L84.1 185L100.8 132.9L57 101.1L111.1 101.1L128 49Z" fill="url(#spark)"/>
+  <path d="M128 83.5L138.1 114.5H170.8L144.4 133.8L154.5 164.8L128 145.7L101.5 164.8L111.6 133.8L85.2 114.5H117.9L128 83.5Z" fill="#0F172A" fill-opacity="0.28"/>
+  <circle cx="190" cy="64" r="13" fill="#FDE68A"/>
+  <circle cx="65" cy="189" r="10" fill="#C4B5FD"/>
+</svg>

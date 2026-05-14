@@ -1,0 +1,57 @@
+{
+  "name": "ai-launcher",
+  "version": "0.1.0",
+  "description": "A desktop global-hotkey AI launcher built with Electron, React and TypeScript.",
+  "author": "",
+  "license": "MIT",
+  "private": false,
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "electron:dev": "tsc -p tsconfig.electron.json && electron .",
+    "dev:all": "node scripts/dev-runner.mjs",
+    "build": "tsc -b && vite build && tsc -p tsconfig.electron.json",
+    "preview": "vite preview --host 127.0.0.1",
+    "lint": "eslint .",
+    "package": "npm run build && electron-builder"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "vite": "latest",
+    "typescript": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "lucide-react": "latest",
+    "electron": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "eslint": "latest",
+    "@eslint/js": "latest",
+    "typescript-eslint": "latest",
+    "electron-builder": "latest"
+  },
+  "build": {
+    "appId": "com.ailaun.chair",
+    "productName": "AI Launcher",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}
