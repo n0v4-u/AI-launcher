@@ -1,8 +1,8 @@
 import { spawn } from 'node:child_process';
 import net from 'node:net';
 
-const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-const electronCommand = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+const npmCli = process.env.npm_execpath || (process.platform === 'win32' ? 'npm.cmd' : 'npm');
+const nodeCommand = process.execPath;
 const viteUrl = 'http://127.0.0.1:5173';
 
 let shuttingDown = false;
@@ -12,7 +12,7 @@ let electronProcess;
 function run(command, args, name) {
   const child = spawn(command, args, {
     stdio: 'inherit',
-    shell: false,
+    shell: true,
     windowsHide: false,
   });
 
@@ -33,6 +33,25 @@ function run(command, args, name) {
   });
 
   return child;
+}
+
+function runAndWait(command, args, name) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      stdio: 'inherit',
+      shell: true,
+      windowsHide: false,
+    });
+
+    child.on('exit', (code, signal) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+
+      reject(new Error(`${name} exited with code ${code ?? signal}.`));
+    });
+  });
 }
 
 function waitForPort(host, port, timeoutMs = 30000) {
@@ -95,14 +114,17 @@ process.on('uncaughtException', (error) => {
   shutdown(1);
 });
 
+console.log('Building Electron main process...');
+await runAndWait(nodeCommand, [npmCli, 'run', 'build:electron'], 'electron build');
+
 console.log('Starting Vite dev server...');
-viteProcess = run(npmCommand, ['run', 'dev'], 'vite');
+viteProcess = run(nodeCommand, [npmCli, 'run', 'dev'], 'vite');
 
 try {
   await waitForPort('127.0.0.1', 5173);
   console.log(`Vite is ready at ${viteUrl}`);
   console.log('Starting Electron...');
-  electronProcess = run(electronCommand, ['electron', '.'], 'electron');
+  electronProcess = run(nodeCommand, [npmCli, 'exec', '--', 'electron', '.'], 'electron');
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   shutdown(1);

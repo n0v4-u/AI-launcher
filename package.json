@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "electron:dev": "tsc -p tsconfig.electron.json && electron .",
+    "build:electron": "tsc -p tsconfig.electron.json",
     "dev:all": "node scripts/dev-runner.mjs",
     "build": "tsc -b && vite build && tsc -p tsconfig.electron.json",
     "preview": "vite preview --host 127.0.0.1",
