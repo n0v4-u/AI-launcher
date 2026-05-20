@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cp \"D:/Coding/ai-launcher/public/icon-16.png\" \"D:/Coding/ai-launcher/build/icon-16.png\")",
+      "Bash(cp \"D:/Coding/ai-launcher/public/icon-32.png\" \"D:/Coding/ai-launcher/build/icon-32.png\")",
+      "Bash(cp \"D:/Coding/ai-launcher/public/icon-48.png\" \"D:/Coding/ai-launcher/build/icon-48.png\")",
+      "Bash(cp \"D:/Coding/ai-launcher/public/icon-64.png\" \"D:/Coding/ai-launcher/build/icon-64.png\")",
+      "Bash(cp \"D:/Coding/ai-launcher/public/icon-128.png\" \"D:/Coding/ai-launcher/build/icon-128.png\")",
+      "Bash(npx tsc *)",
+      "Bash(npx vite *)",
+      "Bash(npm install *)"
+    ]
+  }
+}

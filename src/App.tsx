@@ -14,7 +14,20 @@ import {
   Sparkles,
   Zap,
 } from 'lucide-react';
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { marked } from 'marked';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+const renderer = new marked.Renderer();
+const origCode = renderer.code.bind(renderer);
+let codeIdx = 0;
+renderer.code = function (opts: { text: string; lang?: string; escaped?: boolean }) {
+  const idx = codeIdx++;
+  const lang = opts.lang ?? '';
+  const html = origCode(opts as Parameters<typeof origCode>[0]);
+  return `<div class="code-block"><div class="code-head"><span>${lang}</span><button class="code-copy-btn" data-code-idx="${idx}" type="button"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>复制</span></button></div>${html}</div>`;
+};
+
+marked.setOptions({ renderer });
 
 type Provider = {
   id: string;
@@ -86,7 +99,7 @@ export function App() {
   const [selectedProviderId, setSelectedProviderId] = useState(providers[0].id);
   const [hotkey, setHotkey] = useState('Ctrl+Shift+Space');
   const [answer, setAnswer] = useState('');
-  const [status, setStatus] = useState('准备就绪');
+  const [status, setStatus] = useState('✨ 随时为您效劳...');
   const [isSending, setIsSending] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
@@ -106,19 +119,38 @@ export function App() {
     });
   }, []);
 
+  const handleAnswerClick = useCallback((e: React.MouseEvent) => {
+    const btn = (e.target as HTMLElement).closest('.code-copy-btn') as HTMLButtonElement | null;
+    if (!btn) return;
+
+    const block = btn.closest('.code-block');
+    const code = block?.querySelector('code')?.textContent ?? '';
+    navigator.clipboard.writeText(code).catch(() => {
+      window.aiLauncher?.writeClipboard(code);
+    });
+
+    btn.classList.add('copied');
+    const span = btn.querySelector('span');
+    if (span) span.textContent = '已复制';
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      if (span) span.textContent = '复制';
+    }, 1500);
+  }, []);
+
   const saveConfig = async () => {
     if (!window.aiLauncher) {
-      setStatus('配置保存功能需要在 Electron 窗口中使用。');
+      setStatus('⚙️ 配置保存功能需要在 Electron 窗口中使用。');
       return;
     }
 
     try {
       const saved = await window.aiLauncher.saveAiConfig(config);
       setConfig(saved);
-      setStatus('AI 配置已保存，可以使用“直接发送”了。');
+      setStatus('✨ 配置已保存，尽情使用吧~');
       setShowConfig(false);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : '保存配置失败。');
+      setStatus(error instanceof Error ? error.message : '😵 保存失败，请重试。');
     }
   };
 
@@ -132,19 +164,19 @@ export function App() {
 
     if (selectedProvider.mode === 'direct') {
       if (!window.aiLauncher) {
-        setStatus('直接发送功能需要在 Electron 窗口中使用。');
+        setStatus('⚙️ 直接发送功能需要在 Electron 窗口中使用。');
         return;
       }
 
       setIsSending(true);
       setAnswer('');
-      setStatus('正在发送给 AI...');
+      setStatus('🤔 正在思考中...');
       try {
         const result = await window.aiLauncher.sendDirect(text);
         setAnswer(result);
-        setStatus('已收到回复');
+        setStatus('✅ 已收到回复');
       } catch (error) {
-        setStatus(error instanceof Error ? error.message : '直接发送失败，请检查 API 配置。');
+        setStatus(error instanceof Error ? error.message : '😵 直接发送失败，请检查 API 配置。');
         setShowConfig(true);
       } finally {
         setIsSending(false);
@@ -158,7 +190,7 @@ export function App() {
 
     if (selectedProvider.needsClipboard) {
       await window.aiLauncher?.writeClipboard(text);
-      setStatus('已复制问题。Gemini 打开后按 Ctrl+V 粘贴即可。');
+      setStatus('📋 已复制到剪贴板，在 Gemini 中 Ctrl+V 即可');
     }
 
     const url = selectedProvider.buildUrl(text);
@@ -257,9 +289,14 @@ export function App() {
         </div>
 
         {answer && (
-          <article className="answer-panel">
+          <article className="answer-panel" onClick={handleAnswerClick}>
             <strong>AI 回复</strong>
-            <p>{answer}</p>
+            <div
+              className="answer-content"
+              dangerouslySetInnerHTML={{
+                __html: ((codeIdx = 0), marked.parse(answer) as string),
+              }}
+            />
           </article>
         )}
 

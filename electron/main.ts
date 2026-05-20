@@ -4,9 +4,13 @@ import path from 'node:path';
 
 const isDev = !app.isPackaged;
 const hotkey = 'CommandOrControl+Shift+Space';
-const appIconPath = isDev
-  ? path.join(process.cwd(), 'build', 'icon.svg')
-  : path.join(process.resourcesPath, 'build', 'icon.svg');
+
+function getIconPath(name: string) {
+  const base = isDev
+    ? path.join(process.cwd(), 'build')
+    : path.join(process.resourcesPath, 'build');
+  return path.join(base, name);
+}
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -52,30 +56,12 @@ async function saveAiConfig(config: AiConfig) {
   return normalized;
 }
 
-function createAppIcon(size = 256) {
-  const image = nativeImage.createFromPath(appIconPath);
-
-  if (!image.isEmpty()) {
-    return image.resize({ width: size, height: size });
-  }
-
-  return nativeImage.createFromDataURL(
-    `data:image/svg+xml;base64,${Buffer.from(
-      '<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg"><rect x="28" y="24" width="200" height="208" rx="56" fill="#6366F1"/><path d="M128 49L144.9 101.1H199L155.2 132.9L171.9 185L128 152.8L84.1 185L100.8 132.9L57 101.1H111.1L128 49Z" fill="#F8FAFC"/></svg>',
-    ).toString('base64')}`,
-  ).resize({ width: size, height: size });
-}
-
-function createTrayIcon() {
-  return createAppIcon(16);
-}
-
 function createTray() {
   if (tray) {
     return;
   }
 
-  tray = new Tray(createTrayIcon());
+  tray = new Tray(getIconPath('icon-16.png'));
   tray.setToolTip('AI Launcher');
   tray.setContextMenu(
     Menu.buildFromTemplate([
@@ -104,7 +90,7 @@ function createWindow() {
     minWidth: 700,
     minHeight: 620,
     show: false,
-    icon: createAppIcon(),
+    icon: nativeImage.createFromPath(getIconPath('icon.png')),
     frame: false,
     alwaysOnTop: true,
     resizable: true,
@@ -184,6 +170,10 @@ async function sendDirectPrompt(prompt: string) {
 }
 
 app.whenReady().then(() => {
+  if (process.platform === 'win32') {
+    app.setAppUserModelId('com.ailauncher.app');
+  }
+
   createWindow();
   createTray();
 
