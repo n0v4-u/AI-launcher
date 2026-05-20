@@ -226,16 +226,20 @@ h1 {
   flex: 0 0 auto;
 }
 
-.search-box input {
+.search-box textarea {
   width: 100%;
   border: 0;
   outline: 0;
   color: #f8fafc;
   background: transparent;
   font-size: 17px;
+  font-family: inherit;
+  resize: none;
+  align-self: center;
+  line-height: 1.5;
 }
 
-.search-box input::placeholder {
+.search-box textarea::placeholder {
   color: #64748b;
 }
 

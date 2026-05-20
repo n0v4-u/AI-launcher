@@ -104,7 +104,7 @@ export function App() {
   const [showConfig, setShowConfig] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [config, setConfig] = useState<AiConfig>(defaultConfig);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const selectedProvider = useMemo(
     () => providers.find((provider) => provider.id === selectedProviderId) ?? providers[0],
@@ -151,6 +151,13 @@ export function App() {
       setShowConfig(false);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : '😵 保存失败，请重试。');
+    }
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      launch();
     }
   };
 
@@ -270,12 +277,14 @@ export function App() {
 
         <form className="search-box" onSubmit={launch}>
           <Bot className="search-icon" size={24} />
-          <input
+          <textarea
             ref={inputRef}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder="输入你想问 AI 的内容，例如：帮我总结这段代码的优化点"
             autoFocus
+            rows={1}
           />
           <button type="submit" disabled={isSending}>
             {isSending ? '发送中' : selectedProvider.mode === 'direct' ? '发送' : '启动'}
