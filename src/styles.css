@@ -195,6 +195,12 @@ h1 {
   cursor: pointer;
 }
 
+.config-panel input.recording {
+  border-color: rgba(125, 211, 252, 0.7);
+  box-shadow: 0 0 0 2px rgba(125, 211, 252, 0.25);
+  caret-color: transparent;
+}
+
 .secret-input {
   display: flex;
   gap: 8px;

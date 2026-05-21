@@ -43,12 +43,14 @@ type AiConfig = {
   apiKey: string;
   apiUrl: string;
   model: string;
+  hotkey: string;
 };
 
 const defaultConfig: AiConfig = {
   apiKey: '',
   apiUrl: 'https://api.openai.com/v1/chat/completions',
   model: 'gpt-4o-mini',
+  hotkey: 'CommandOrControl+Shift+Space',
 };
 
 const providers: Provider[] = [
@@ -103,8 +105,11 @@ export function App() {
   const [isSending, setIsSending] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [recording, setRecording] = useState(false);
   const [config, setConfig] = useState<AiConfig>(defaultConfig);
+  const hotkeyInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const thinkingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const selectedProvider = useMemo(
     () => providers.find((provider) => provider.id === selectedProviderId) ?? providers[0],
@@ -147,6 +152,7 @@ export function App() {
     try {
       const saved = await window.aiLauncher.saveAiConfig(config);
       setConfig(saved);
+      setHotkey(saved.hotkey);
       setStatus('✨ 配置已保存，尽情使用吧~');
       setShowConfig(false);
     } catch (error) {
@@ -159,6 +165,29 @@ export function App() {
       event.preventDefault();
       launch();
     }
+  };
+
+  const handleHotkeyRecord = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    event.preventDefault();
+    if (!recording) return;
+
+    if (event.key === 'Control' || event.key === 'Shift' || event.key === 'Alt' || event.key === 'Meta') return;
+
+    const parts: string[] = [];
+    if (event.ctrlKey || event.metaKey) parts.push('CommandOrControl');
+    if (event.shiftKey) parts.push('Shift');
+    if (event.altKey) parts.push('Alt');
+
+    const code = event.code;
+    let key = code;
+    if (code.startsWith('Key')) key = code.slice(3);
+    else if (code.startsWith('Digit')) key = code.slice(5);
+
+    parts.push(key);
+    const accelerator = parts.join('+');
+    setConfig((current) => ({ ...current, hotkey: accelerator }));
+    setRecording(false);
+    hotkeyInputRef.current?.blur();
   };
 
   const launch = async (event?: FormEvent) => {
@@ -177,15 +206,36 @@ export function App() {
 
       setIsSending(true);
       setAnswer('');
-      setStatus('🤔 正在思考中...');
+      setStatus('🤔 正在思考中…');
+      const startTime = Date.now();
+      thinkingTimerRef.current = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        if (elapsed < 6) {
+          setStatus(`🤔 正在思考中… (${elapsed}s)`);
+        } else if (elapsed < 12) {
+          setStatus(`🧠 正在努力推理中… (${elapsed}s)`);
+        } else if (elapsed < 20) {
+          setStatus(`🔍 还在深入分析… (${elapsed}s)`);
+        } else {
+          setStatus(`😅 再等一下，快好了… (${elapsed}s)`);
+        }
+      }, 1000);
       window.aiLauncher.sendDirectStream(
         text,
         (chunk) => setAnswer((prev) => prev + chunk),
         () => {
+          if (thinkingTimerRef.current) {
+            clearInterval(thinkingTimerRef.current);
+            thinkingTimerRef.current = null;
+          }
           setStatus('✅ 已收到回复');
           setIsSending(false);
         },
         (error) => {
+          if (thinkingTimerRef.current) {
+            clearInterval(thinkingTimerRef.current);
+            thinkingTimerRef.current = null;
+          }
           setStatus(error);
           setShowConfig(true);
           setIsSending(false);
@@ -258,6 +308,18 @@ export function App() {
                   {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+            </label>
+            <label>
+              <span>快捷键</span>
+              <input
+                ref={hotkeyInputRef}
+                value={recording ? '按下快捷键…' : config.hotkey}
+                onFocus={() => setRecording(true)}
+                onBlur={() => setRecording(false)}
+                onKeyDown={handleHotkeyRecord}
+                readOnly
+                className={recording ? 'recording' : ''}
+              />
             </label>
             <label>
               <span>API 地址</span>
@@ -335,7 +397,6 @@ export function App() {
 
         <footer>
           <span>Enter 启动 / 发送</span>
-          <span>Gemini 自动复制问题</span>
           <span>直接发送可在界面配置</span>
         </footer>
       </section>

@@ -4,6 +4,7 @@ type AiConfig = {
   apiKey: string;
   apiUrl: string;
   model: string;
+  hotkey: string;
 };
 
 declare global {

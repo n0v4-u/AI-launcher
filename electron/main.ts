@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 const isDev = !app.isPackaged;
-const hotkey = 'CommandOrControl+Shift+Space';
+let hotkey = 'CommandOrControl+Shift+Space';
 
 function getIconPath(name: string) {
   const base = isDev
@@ -19,12 +19,14 @@ type AiConfig = {
   apiKey: string;
   apiUrl: string;
   model: string;
+  hotkey: string;
 };
 
 const defaultAiConfig: AiConfig = {
   apiKey: '',
   apiUrl: 'https://api.openai.com/v1/chat/completions',
   model: 'gpt-4o-mini',
+  hotkey: 'CommandOrControl+Shift+Space',
 };
 
 function getConfigPath() {
@@ -39,6 +41,7 @@ async function readAiConfig(): Promise<AiConfig> {
       apiKey: saved.apiKey ?? '',
       apiUrl: saved.apiUrl ?? defaultAiConfig.apiUrl,
       model: saved.model ?? defaultAiConfig.model,
+      hotkey: saved.hotkey ?? defaultAiConfig.hotkey,
     };
   } catch {
     return defaultAiConfig;
@@ -50,6 +53,7 @@ async function saveAiConfig(config: AiConfig) {
     apiKey: config.apiKey.trim(),
     apiUrl: config.apiUrl.trim() || defaultAiConfig.apiUrl,
     model: config.model.trim() || defaultAiConfig.model,
+    hotkey: config.hotkey.trim() || defaultAiConfig.hotkey,
   };
   await fs.mkdir(path.dirname(getConfigPath()), { recursive: true });
   await fs.writeFile(getConfigPath(), JSON.stringify(normalized, null, 2), 'utf-8');
@@ -63,6 +67,12 @@ function createTray() {
 
   tray = new Tray(getIconPath('icon-16.png'));
   tray.setToolTip('AI Launcher');
+  refreshTrayMenu();
+  tray.on('click', toggleLauncher);
+}
+
+function refreshTrayMenu() {
+  if (!tray) return;
   tray.setContextMenu(
     Menu.buildFromTemplate([
       {
@@ -80,7 +90,16 @@ function createTray() {
       },
     ]),
   );
-  tray.on('click', toggleLauncher);
+}
+
+function registerHotkey(newHotkey: string) {
+  globalShortcut.unregisterAll();
+  const ok = globalShortcut.register(newHotkey, toggleLauncher);
+  if (!ok) {
+    globalShortcut.register(hotkey, toggleLauncher);
+    throw new Error(`快捷键 "${newHotkey}" 注册失败，可能已被占用或格式无效。`);
+  }
+  hotkey = newHotkey;
 }
 
 function createWindow() {
@@ -254,10 +273,13 @@ async function sendDirectPromptStream(prompt: string) {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   if (process.platform === 'win32') {
     app.setAppUserModelId('com.ailauncher.app');
   }
+
+  const config = await readAiConfig();
+  hotkey = config.hotkey;
 
   createWindow();
   createTray();
@@ -276,7 +298,14 @@ app.whenReady().then(() => {
     clipboard.writeText(text);
   });
   ipcMain.handle('ai:get-config', async () => readAiConfig());
-  ipcMain.handle('ai:save-config', async (_event, config: AiConfig) => saveAiConfig(config));
+  ipcMain.handle('ai:save-config', async (_event, cfg: AiConfig) => {
+    const saved = await saveAiConfig(cfg);
+    if (cfg.hotkey !== hotkey) {
+      registerHotkey(cfg.hotkey);
+      refreshTrayMenu();
+    }
+    return saved;
+  });
   ipcMain.handle('ai:send-direct', async (_event, prompt: string) => sendDirectPrompt(prompt));
   ipcMain.on('ai:send-direct-stream', (_event, prompt: string) => {
     sendDirectPromptStream(prompt);

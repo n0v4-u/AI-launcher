@@ -10,12 +10,12 @@ AI Launcher 是一个桌面端全局快捷键 AI 启动器。
 
 ## ✨ 功能特性
 
-- ⚡ 全局快捷键快速唤起启动器
+- ⚡ 全局快捷键快速唤起启动器，支持 UI 内自定义
 - 🪟 轻量透明窗口，失焦自动隐藏，类似系统级搜索框
 - 🤖 支持多个 AI 服务入口（ChatGPT、Claude、Perplexity、Gemini）
 - 💬 支持应用内直接与 AI 对话（OpenAI 兼容接口），实时流式输出
+- ⌛ 推理过程俏皮计时提示，缓解等待焦虑
 - 📝 多行输入支持（Shift+Enter 换行，Enter 发送）
-- 📋 Gemini 自动复制问题到剪贴板，解决网页不支持 URL 预填的问题
 - 🎨 AI 回复支持 Markdown 渲染，代码块一键复制
 - 🖥️ 系统托盘常驻
 - 📦 已配置基础打包脚本，可直接安装作为桌面应用
@@ -108,10 +108,11 @@ release/
 
 使用步骤：
 
-1. 按 `Ctrl/Command + Shift + Space` 打开 AI Launcher  
+1. 按快捷键打开 AI Launcher  
 2. 点击右上角 **配置**  
 3. 填写：
    - `API Key`
+   - `快捷键`（点击输入框后直接按下组合键录制）
    - `API 地址`
    - `模型名`
 4. 点击 **保存**
@@ -136,26 +137,16 @@ OpenAI Chat Completions API
 
 ## ⌨️ 快捷键
 
-默认快捷键：
+默认快捷键为 `Ctrl/Command + Shift + Space`。
 
-```text
-Ctrl/Command + Shift + Space
-```
-
-可在：
-
-```text
-electron/main.ts
-```
-
-中修改 `hotkey` 常量。
+在配置面板中点击快捷键输入框，按下想要设置的组合键即可自定义，无需编辑代码。
 
 ---
 
 ## 🗺️ 开发路线图
 
 - [ ] 自定义 AI 服务列表
-- [ ] 自定义快捷键配置
+- [x] 自定义快捷键配置
 - [x] 系统托盘常驻
 - [ ] 本地历史记录
 - [x] 流式输出（Streaming）
