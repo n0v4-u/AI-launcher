@@ -16,6 +16,12 @@ declare global {
       getAiConfig: () => Promise<AiConfig>;
       saveAiConfig: (config: AiConfig) => Promise<AiConfig>;
       sendDirect: (prompt: string) => Promise<string>;
+      sendDirectStream: (
+        prompt: string,
+        onChunk: (text: string) => void,
+        onDone: () => void,
+        onError: (err: string) => void,
+      ) => void;
       onFocusInput: (callback: () => void) => () => void;
     };
   }

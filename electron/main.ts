@@ -169,6 +169,91 @@ async function sendDirectPrompt(prompt: string) {
   return data.choices?.[0]?.message?.content?.trim() ?? '没有收到有效回复。';
 }
 
+async function sendDirectPromptStream(prompt: string) {
+  const config = await readAiConfig();
+  if (!config.apiKey) {
+    mainWindow?.webContents.send('ai:stream-error', '请先点击"配置"填写 API Key，再使用直接发送功能。');
+    return;
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(config.apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a helpful desktop AI assistant. Reply in the same language as the user when possible.',
+          },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0.7,
+        stream: true,
+      }),
+    });
+  } catch (err) {
+    mainWindow?.webContents.send('ai:stream-error', `网络请求失败：${err instanceof Error ? err.message : '未知错误'}`);
+    return;
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '');
+    mainWindow?.webContents.send('ai:stream-error', `AI 请求失败：${response.status} ${errorText}`);
+    return;
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    mainWindow?.webContents.send('ai:stream-error', '无法读取响应流');
+    return;
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || !trimmed.startsWith('data:')) continue;
+
+        const rawData = trimmed.slice(5).trim();
+        if (rawData === '[DONE]') {
+          mainWindow?.webContents.send('ai:stream-done');
+          return;
+        }
+
+        try {
+          const parsed = JSON.parse(rawData);
+          const content = parsed.choices?.[0]?.delta?.content;
+          if (content) {
+            mainWindow?.webContents.send('ai:stream-chunk', content);
+          }
+        } catch {
+          // skip malformed JSON chunks
+        }
+      }
+    }
+
+    mainWindow?.webContents.send('ai:stream-done');
+  } catch (err) {
+    mainWindow?.webContents.send('ai:stream-error', `流读取中断：${err instanceof Error ? err.message : '未知错误'}`);
+  }
+}
+
 app.whenReady().then(() => {
   if (process.platform === 'win32') {
     app.setAppUserModelId('com.ailauncher.app');
@@ -193,6 +278,9 @@ app.whenReady().then(() => {
   ipcMain.handle('ai:get-config', async () => readAiConfig());
   ipcMain.handle('ai:save-config', async (_event, config: AiConfig) => saveAiConfig(config));
   ipcMain.handle('ai:send-direct', async (_event, prompt: string) => sendDirectPrompt(prompt));
+  ipcMain.on('ai:send-direct-stream', (_event, prompt: string) => {
+    sendDirectPromptStream(prompt);
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

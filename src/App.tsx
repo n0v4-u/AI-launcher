@@ -178,16 +178,19 @@ export function App() {
       setIsSending(true);
       setAnswer('');
       setStatus('🤔 正在思考中...');
-      try {
-        const result = await window.aiLauncher.sendDirect(text);
-        setAnswer(result);
-        setStatus('✅ 已收到回复');
-      } catch (error) {
-        setStatus(error instanceof Error ? error.message : '😵 直接发送失败，请检查 API 配置。');
-        setShowConfig(true);
-      } finally {
-        setIsSending(false);
-      }
+      window.aiLauncher.sendDirectStream(
+        text,
+        (chunk) => setAnswer((prev) => prev + chunk),
+        () => {
+          setStatus('✅ 已收到回复');
+          setIsSending(false);
+        },
+        (error) => {
+          setStatus(error);
+          setShowConfig(true);
+          setIsSending(false);
+        },
+      );
       return;
     }
 
