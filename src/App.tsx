@@ -106,6 +106,7 @@ export function App() {
   const [showConfig, setShowConfig] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [answerCopied, setAnswerCopied] = useState(false);
   const [config, setConfig] = useState<AiConfig>(defaultConfig);
   const hotkeyInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -142,6 +143,17 @@ export function App() {
       if (span) span.textContent = '复制';
     }, 1500);
   }, []);
+
+  const handleCopyAnswer = useCallback(async () => {
+    const text = answer;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      await window.aiLauncher?.writeClipboard(text);
+    }
+    setAnswerCopied(true);
+    setTimeout(() => setAnswerCopied(false), 1500);
+  }, [answer]);
 
   const saveConfig = async () => {
     if (!window.aiLauncher) {
@@ -228,7 +240,8 @@ export function App() {
             clearInterval(thinkingTimerRef.current);
             thinkingTimerRef.current = null;
           }
-          setStatus('✅ 已收到回复');
+          const total = Math.floor((Date.now() - startTime) / 1000);
+          setStatus(`✅ 已收到回复 (${total}s)`);
           setIsSending(false);
         },
         (error) => {
@@ -364,7 +377,13 @@ export function App() {
 
         {answer && (
           <article className="answer-panel" onClick={handleAnswerClick}>
-            <strong>AI 回复</strong>
+            <div className="answer-head">
+              <strong>AI 回复</strong>
+              <button className="answer-copy-btn" type="button" onClick={(e) => { e.stopPropagation(); handleCopyAnswer(); }}>
+                <Clipboard size={14} />
+                <span>{answerCopied ? '已复制' : '复制'}</span>
+              </button>
+            </div>
             <div
               className="answer-content"
               dangerouslySetInnerHTML={{
