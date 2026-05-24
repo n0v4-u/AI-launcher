@@ -1,17 +1,33 @@
 import {
+  BookOpen,
   Bot,
   BrainCircuit,
+  Check,
+  ChevronDown,
+  ChevronUp,
   Clipboard,
+  Cloud,
+  Code,
+  Compass,
+  Cpu,
   ExternalLink,
   Eye,
   EyeOff,
   Globe2,
   Keyboard,
+  Lightbulb,
   MessageSquareText,
+  Pencil,
+  PenTool,
+  Plus,
   Save,
+  Search,
   Send,
   Settings,
   Sparkles,
+  Telescope,
+  Trash2,
+  X,
   Zap,
 } from 'lucide-react';
 import { marked } from 'marked';
@@ -33,9 +49,9 @@ type Provider = {
   id: string;
   name: string;
   description: string;
-  icon: typeof Bot;
+  icon: string;
   mode: 'external' | 'direct';
-  buildUrl?: (query: string) => string;
+  urlTemplate?: string;
   needsClipboard?: boolean;
 };
 
@@ -46,6 +62,52 @@ type AiConfig = {
   hotkey: string;
 };
 
+const iconMap: Record<string, React.ComponentType<{ size?: number }>> = {
+  bot: Bot,
+  sparkles: Sparkles,
+  'brain-circuit': BrainCircuit,
+  globe: Globe2,
+  'message-square-text': MessageSquareText,
+  send: Send,
+  zap: Zap,
+  search: Search,
+  cpu: Cpu,
+  cloud: Cloud,
+  'book-open': BookOpen,
+  code: Code,
+  'pen-tool': PenTool,
+  lightbulb: Lightbulb,
+  compass: Compass,
+  telescope: Telescope,
+};
+
+const availableIcons = [
+  { name: 'bot', label: '机器人' },
+  { name: 'sparkles', label: '星星' },
+  { name: 'brain-circuit', label: '大脑' },
+  { name: 'globe', label: '地球' },
+  { name: 'message-square-text', label: '消息' },
+  { name: 'send', label: '发送' },
+  { name: 'zap', label: '闪电' },
+  { name: 'search', label: '搜索' },
+  { name: 'cpu', label: '芯片' },
+  { name: 'cloud', label: '云' },
+  { name: 'book-open', label: '书本' },
+  { name: 'code', label: '代码' },
+  { name: 'pen-tool', label: '写作' },
+  { name: 'lightbulb', label: '灯泡' },
+  { name: 'compass', label: '指南针' },
+  { name: 'telescope', label: '望远镜' },
+];
+
+function resolveUrl(template: string, query: string): string {
+  return template.replace('{query}', encodeURIComponent(query));
+}
+
+function generateId(): string {
+  return `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
 const defaultConfig: AiConfig = {
   apiKey: '',
   apiUrl: 'https://api.openai.com/v1/chat/completions',
@@ -53,52 +115,52 @@ const defaultConfig: AiConfig = {
   hotkey: 'CommandOrControl+Shift+Space',
 };
 
-const providers: Provider[] = [
+const defaultProviders: Provider[] = [
   {
     id: 'direct',
     name: '直接发送',
     description: '在当前窗口调用 OpenAI 兼容 API，直接返回文本结果',
-    icon: Send,
+    icon: 'send',
     mode: 'direct',
   },
   {
     id: 'chatgpt',
     name: 'ChatGPT',
     description: '适合通用问答、写作、翻译和代码辅助',
-    icon: Sparkles,
+    icon: 'sparkles',
     mode: 'external',
-    buildUrl: (query) => `https://chat.openai.com/?q=${encodeURIComponent(query)}`,
+    urlTemplate: 'https://chat.openai.com/?q={query}',
   },
   {
     id: 'claude',
     name: 'Claude',
     description: '适合长文档分析、产品思考和代码审查',
-    icon: BrainCircuit,
+    icon: 'brain-circuit',
     mode: 'external',
-    buildUrl: (query) => `https://claude.ai/new?q=${encodeURIComponent(query)}`,
+    urlTemplate: 'https://claude.ai/new?q={query}',
   },
   {
     id: 'perplexity',
     name: 'Perplexity',
     description: '适合联网搜索、资料调研和来源引用',
-    icon: Globe2,
+    icon: 'globe',
     mode: 'external',
-    buildUrl: (query) => `https://www.perplexity.ai/search?q=${encodeURIComponent(query)}`,
+    urlTemplate: 'https://www.perplexity.ai/search?q={query}',
   },
   {
     id: 'gemini',
     name: 'Gemini',
     description: 'Gemini 不稳定支持 URL 预填，已自动复制问题供粘贴',
-    icon: MessageSquareText,
+    icon: 'message-square-text',
     mode: 'external',
     needsClipboard: true,
-    buildUrl: () => 'https://gemini.google.com/app',
+    urlTemplate: 'https://gemini.google.com/app',
   },
 ];
 
 export function App() {
   const [query, setQuery] = useState('');
-  const [selectedProviderId, setSelectedProviderId] = useState(providers[0].id);
+  const [selectedProviderId, setSelectedProviderId] = useState(defaultProviders[0].id);
   const [hotkey, setHotkey] = useState('Ctrl+Shift+Space');
   const [answer, setAnswer] = useState('');
   const [status, setStatus] = useState('✨ 随时为您效劳...');
@@ -108,13 +170,17 @@ export function App() {
   const [recording, setRecording] = useState(false);
   const [answerCopied, setAnswerCopied] = useState(false);
   const [config, setConfig] = useState<AiConfig>(defaultConfig);
+  const [providers, setProviders] = useState<Provider[]>(defaultProviders);
+  const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
+  const [isAddingProvider, setIsAddingProvider] = useState(false);
+  const [providerForm, setProviderForm] = useState<Partial<Provider>>({});
   const hotkeyInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const thinkingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const selectedProvider = useMemo(
     () => providers.find((provider) => provider.id === selectedProviderId) ?? providers[0],
-    [selectedProviderId],
+    [selectedProviderId, providers],
   );
 
   useEffect(() => {
@@ -154,6 +220,99 @@ export function App() {
     setAnswerCopied(true);
     setTimeout(() => setAnswerCopied(false), 1500);
   }, [answer]);
+
+  const handleStartAdd = useCallback(() => {
+    setEditingProviderId(null);
+    setIsAddingProvider(true);
+    setProviderForm({
+      name: '',
+      description: '',
+      icon: 'bot',
+      mode: 'external',
+      urlTemplate: 'https://example.com/?q={query}',
+      needsClipboard: false,
+    });
+  }, []);
+
+  const handleAddProvider = useCallback(() => {
+    const form = providerForm;
+    if (!form.name?.trim()) return;
+    const newProvider: Provider = {
+      id: generateId(),
+      name: form.name.trim(),
+      description: (form.description ?? '').trim(),
+      icon: form.icon ?? 'bot',
+      mode: 'external',
+      urlTemplate: (form.urlTemplate ?? '').trim(),
+      needsClipboard: form.needsClipboard ?? false,
+    };
+    setProviders((prev) => [...prev, newProvider]);
+    setIsAddingProvider(false);
+    setProviderForm({});
+  }, [providerForm]);
+
+  const handleStartEdit = useCallback((providerId: string) => {
+    const provider = providers.find((p) => p.id === providerId);
+    if (!provider || provider.mode === 'direct') return;
+    setEditingProviderId(providerId);
+    setIsAddingProvider(false);
+    setProviderForm({ ...provider });
+  }, [providers]);
+
+  const handleSaveEdit = useCallback(() => {
+    const form = providerForm;
+    if (!form.name?.trim() || !editingProviderId) return;
+    setProviders((prev) =>
+      prev.map((p) =>
+        p.id === editingProviderId
+          ? {
+              ...p,
+              name: form.name!.trim(),
+              description: (form.description ?? '').trim(),
+              icon: form.icon ?? 'bot',
+              urlTemplate: (form.urlTemplate ?? '').trim(),
+              needsClipboard: form.needsClipboard ?? false,
+            }
+          : p,
+      ),
+    );
+    setEditingProviderId(null);
+    setProviderForm({});
+  }, [providerForm, editingProviderId]);
+
+  const handleCancelForm = useCallback(() => {
+    setIsAddingProvider(false);
+    setEditingProviderId(null);
+    setProviderForm({});
+  }, []);
+
+  const handleDeleteProvider = useCallback((providerId: string) => {
+    const provider = providers.find((p) => p.id === providerId);
+    if (!provider || provider.mode === 'direct') return;
+    if (!window.confirm(`确定要删除 "${provider.name}" 吗？`)) return;
+    setProviders((prev) => prev.filter((p) => p.id !== providerId));
+    if (selectedProviderId === providerId) {
+      setSelectedProviderId(providers[0]?.id ?? 'direct');
+    }
+  }, [providers, selectedProviderId]);
+
+  const handleMoveUp = useCallback((index: number) => {
+    if (index <= 0) return;
+    setProviders((prev) => {
+      const next = [...prev];
+      [next[index - 1], next[index]] = [next[index], next[index - 1]];
+      return next;
+    });
+  }, []);
+
+  const handleMoveDown = useCallback((index: number) => {
+    setProviders((prev) => {
+      if (index >= prev.length - 1) return prev;
+      const next = [...prev];
+      [next[index], next[index + 1]] = [next[index + 1], next[index]];
+      return next;
+    });
+  }, []);
 
   const saveConfig = async () => {
     if (!window.aiLauncher) {
@@ -257,7 +416,7 @@ export function App() {
       return;
     }
 
-    if (!selectedProvider.buildUrl) {
+    if (!selectedProvider.urlTemplate) {
       return;
     }
 
@@ -266,7 +425,7 @@ export function App() {
       setStatus('📋 已复制到剪贴板，在 Gemini 中 Ctrl+V 即可');
     }
 
-    const url = selectedProvider.buildUrl(text);
+    const url = resolveUrl(selectedProvider.urlTemplate, text);
     if (window.aiLauncher) {
       await window.aiLauncher.openExternal(url);
       if (!selectedProvider.needsClipboard) {
@@ -300,57 +459,264 @@ export function App() {
         </div>
 
         {showConfig && (
-          <section className="config-panel">
-            <div className="config-title">
-              <div>
-                <strong>直接发送配置</strong>
-                <p>支持 OpenAI 兼容的 Chat Completions 接口，例如 OpenAI、硅基流动、DeepSeek 网关等。</p>
+          <div className="config-panel">
+            <section>
+              <div className="config-title">
+                <div>
+                  <strong>直接发送配置</strong>
+                  <p>支持 OpenAI 兼容的 Chat Completions 接口，例如 OpenAI、硅基流动、DeepSeek 网关等。</p>
+                </div>
+                <button type="button" onClick={saveConfig}><Save size={16} /> 保存</button>
               </div>
-              <button type="button" onClick={saveConfig}><Save size={16} /> 保存</button>
-            </div>
-            <label>
-              <span>API Key</span>
-              <div className="secret-input">
+              <label>
+                <span>API Key</span>
+                <div className="secret-input">
+                  <input
+                    type={showApiKey ? 'text' : 'password'}
+                    value={config.apiKey}
+                    onChange={(event) => setConfig((current) => ({ ...current, apiKey: event.target.value }))}
+                    placeholder="sk-..."
+                  />
+                  <button type="button" onClick={() => setShowApiKey((value) => !value)}>
+                    {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </label>
+              <label>
+                <span>快捷键</span>
                 <input
-                  type={showApiKey ? 'text' : 'password'}
-                  value={config.apiKey}
-                  onChange={(event) => setConfig((current) => ({ ...current, apiKey: event.target.value }))}
-                  placeholder="sk-..."
+                  ref={hotkeyInputRef}
+                  value={recording ? '按下快捷键…' : config.hotkey}
+                  onFocus={() => setRecording(true)}
+                  onBlur={() => setRecording(false)}
+                  onKeyDown={handleHotkeyRecord}
+                  readOnly
+                  className={recording ? 'recording' : ''}
                 />
-                <button type="button" onClick={() => setShowApiKey((value) => !value)}>
-                  {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+              </label>
+              <label>
+                <span>API 地址</span>
+                <input
+                  value={config.apiUrl}
+                  onChange={(event) => setConfig((current) => ({ ...current, apiUrl: event.target.value }))}
+                  placeholder="https://api.openai.com/v1/chat/completions"
+                />
+              </label>
+              <label>
+                <span>模型名</span>
+                <input
+                  value={config.model}
+                  onChange={(event) => setConfig((current) => ({ ...current, model: event.target.value }))}
+                  placeholder="gpt-4o-mini"
+                />
+              </label>
+            </section>
+
+            <div className="config-section-separator" />
+
+            <section>
+              <div className="config-title">
+                <div>
+                  <strong>AI 服务管理</strong>
+                  <p>添加、编辑、删除或排序可用的 AI 服务。修改即时生效，重启后恢复默认。</p>
+                </div>
+                {!isAddingProvider && (
+                  <button type="button" onClick={handleStartAdd}>
+                    <Plus size={16} /> 添加服务
+                  </button>
+                )}
               </div>
-            </label>
-            <label>
-              <span>快捷键</span>
-              <input
-                ref={hotkeyInputRef}
-                value={recording ? '按下快捷键…' : config.hotkey}
-                onFocus={() => setRecording(true)}
-                onBlur={() => setRecording(false)}
-                onKeyDown={handleHotkeyRecord}
-                readOnly
-                className={recording ? 'recording' : ''}
-              />
-            </label>
-            <label>
-              <span>API 地址</span>
-              <input
-                value={config.apiUrl}
-                onChange={(event) => setConfig((current) => ({ ...current, apiUrl: event.target.value }))}
-                placeholder="https://api.openai.com/v1/chat/completions"
-              />
-            </label>
-            <label>
-              <span>模型名</span>
-              <input
-                value={config.model}
-                onChange={(event) => setConfig((current) => ({ ...current, model: event.target.value }))}
-                placeholder="gpt-4o-mini"
-              />
-            </label>
-          </section>
+
+              {isAddingProvider && (
+                <div className="provider-form">
+                  <div className="form-row">
+                    <label>
+                      <span>名称</span>
+                      <input
+                        value={providerForm.name ?? ''}
+                        onChange={(e) => setProviderForm((f) => ({ ...f, name: e.target.value }))}
+                        placeholder="例如：我的 AI 助手"
+                      />
+                    </label>
+                    <label>
+                      <span>图标</span>
+                      <select
+                        value={providerForm.icon ?? 'bot'}
+                        onChange={(e) => setProviderForm((f) => ({ ...f, icon: e.target.value }))}
+                      >
+                        {availableIcons.map((opt) => (
+                          <option key={opt.name} value={opt.name}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  <div className="form-row">
+                    <label style={{ flex: 1 }}>
+                      <span>描述</span>
+                      <input
+                        value={providerForm.description ?? ''}
+                        onChange={(e) => setProviderForm((f) => ({ ...f, description: e.target.value }))}
+                        placeholder="简要描述这个服务的用途"
+                      />
+                    </label>
+                  </div>
+                  <div className="form-row">
+                    <label style={{ flex: 1 }}>
+                      <span>URL 模板</span>
+                      <input
+                        value={providerForm.urlTemplate ?? ''}
+                        onChange={(e) => setProviderForm((f) => ({ ...f, urlTemplate: e.target.value }))}
+                        placeholder="https://example.com/?q={query}"
+                      />
+                    </label>
+                  </div>
+                  <div className="form-row">
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={providerForm.needsClipboard ?? false}
+                        onChange={(e) => setProviderForm((f) => ({ ...f, needsClipboard: e.target.checked }))}
+                      />
+                      <span>自动复制问题到剪贴板（适用于不支持 URL 预填的服务）</span>
+                    </label>
+                  </div>
+                  <div className="form-actions">
+                    <button type="button" className="btn-save" onClick={handleAddProvider}>
+                      <Check size={16} /> 保存
+                    </button>
+                    <button type="button" className="btn-cancel" onClick={handleCancelForm}>
+                      <X size={16} /> 取消
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="provider-list">
+                {providers.map((provider, index) => {
+                  if (editingProviderId === provider.id) {
+                    return (
+                      <div key={provider.id} className="provider-form">
+                        <div className="form-row">
+                          <label>
+                            <span>名称</span>
+                            <input
+                              value={providerForm.name ?? ''}
+                              onChange={(e) => setProviderForm((f) => ({ ...f, name: e.target.value }))}
+                              placeholder="例如：我的 AI 助手"
+                            />
+                          </label>
+                          <label>
+                            <span>图标</span>
+                            <select
+                              value={providerForm.icon ?? 'bot'}
+                              onChange={(e) => setProviderForm((f) => ({ ...f, icon: e.target.value }))}
+                            >
+                              {availableIcons.map((opt) => (
+                                <option key={opt.name} value={opt.name}>{opt.label}</option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                        <div className="form-row">
+                          <label style={{ flex: 1 }}>
+                            <span>描述</span>
+                            <input
+                              value={providerForm.description ?? ''}
+                              onChange={(e) => setProviderForm((f) => ({ ...f, description: e.target.value }))}
+                              placeholder="简要描述这个服务的用途"
+                            />
+                          </label>
+                        </div>
+                        <div className="form-row">
+                          <label style={{ flex: 1 }}>
+                            <span>URL 模板</span>
+                            <input
+                              value={providerForm.urlTemplate ?? ''}
+                              onChange={(e) => setProviderForm((f) => ({ ...f, urlTemplate: e.target.value }))}
+                              placeholder="https://example.com/?q={query}"
+                            />
+                          </label>
+                        </div>
+                        <div className="form-row">
+                          <label className="checkbox-label">
+                            <input
+                              type="checkbox"
+                              checked={providerForm.needsClipboard ?? false}
+                              onChange={(e) => setProviderForm((f) => ({ ...f, needsClipboard: e.target.checked }))}
+                            />
+                            <span>自动复制问题到剪贴板（适用于不支持 URL 预填的服务）</span>
+                          </label>
+                        </div>
+                        <div className="form-actions">
+                          <button type="button" className="btn-save" onClick={handleSaveEdit}>
+                            <Check size={16} /> 保存
+                          </button>
+                          <button type="button" className="btn-cancel" onClick={handleCancelForm}>
+                            <X size={16} /> 取消
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+                  const PIcon = iconMap[provider.icon] ?? Bot;
+                  return (
+                    <div key={provider.id} className="provider-list-item">
+                      <div className="provider-info">
+                        <PIcon size={20} />
+                        <span className="provider-text">
+                          <strong>{provider.name}</strong>
+                          <small>{provider.description}</small>
+                        </span>
+                        <span className={`mode-badge ${provider.mode}`}>
+                          {provider.mode === 'direct' ? '直接' : '外部'}
+                        </span>
+                      </div>
+                      <div className="provider-actions">
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          disabled={index === 0}
+                          onClick={() => handleMoveUp(index)}
+                          title="上移"
+                        >
+                          <ChevronUp size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          disabled={index === providers.length - 1}
+                          onClick={() => handleMoveDown(index)}
+                          title="下移"
+                        >
+                          <ChevronDown size={16} />
+                        </button>
+                        {provider.mode !== 'direct' && (
+                          <>
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              onClick={() => handleStartEdit(provider.id)}
+                              title="编辑"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              className="icon-btn icon-btn-danger"
+                              onClick={() => handleDeleteProvider(provider.id)}
+                              title="删除"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          </div>
         )}
 
         <form className="search-box" onSubmit={launch}>
@@ -395,7 +761,7 @@ export function App() {
 
         <div className="providers" aria-label="AI providers">
           {providers.map((provider) => {
-            const Icon = provider.icon;
+            const Icon = iconMap[provider.icon] ?? Bot;
             const isActive = provider.id === selectedProviderId;
             return (
               <button

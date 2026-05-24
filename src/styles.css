@@ -519,6 +519,220 @@ footer {
   font-size: 13px;
 }
 
+.config-section-separator {
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid rgba(125, 211, 252, 0.12);
+}
+
+.provider-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.provider-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.36);
+  transition: border-color 0.15s;
+}
+
+.provider-list-item:hover {
+  border-color: rgba(125, 211, 252, 0.3);
+}
+
+.provider-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.provider-info > svg {
+  flex-shrink: 0;
+  color: #93c5fd;
+}
+
+.provider-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.provider-text strong {
+  display: block;
+  font-size: 14px;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.provider-text small {
+  display: block;
+  font-size: 12px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mode-badge {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mode-badge.external {
+  color: #7dd3fc;
+  background: rgba(125, 211, 252, 0.12);
+  border: 1px solid rgba(125, 211, 252, 0.2);
+}
+
+.mode-badge.direct {
+  color: #c4b5fd;
+  background: rgba(196, 181, 253, 0.12);
+  border: 1px solid rgba(196, 181, 253, 0.2);
+}
+
+.provider-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  color: #94a3b8;
+  background: rgba(30, 41, 59, 0.5);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.icon-btn:hover:not(:disabled) {
+  color: #e0f2fe;
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.icon-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.icon-btn-danger:hover:not(:disabled) {
+  color: #fca5a5;
+  background: rgba(220, 38, 38, 0.15);
+}
+
+.provider-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(125, 211, 252, 0.22);
+  border-radius: 14px;
+  background: rgba(2, 6, 23, 0.42);
+}
+
+.provider-form .form-row {
+  display: flex;
+  gap: 10px;
+}
+
+.provider-form label {
+  display: grid;
+  gap: 6px;
+  color: #cbd5e1;
+  font-size: 13px;
+  font-weight: 700;
+  min-width: 0;
+}
+
+.provider-form label span {
+  white-space: nowrap;
+}
+
+.provider-form input,
+.provider-form select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 12px;
+  outline: 0;
+  color: #f8fafc;
+  background: rgba(15, 23, 42, 0.64);
+  font-size: 14px;
+}
+
+.provider-form select {
+  cursor: pointer;
+}
+
+.provider-form .checkbox-label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.provider-form .checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #7dd3fc;
+  cursor: pointer;
+}
+
+.provider-form .form-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.provider-form .form-actions button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+
+.provider-form .btn-save {
+  color: #082f49;
+  background: linear-gradient(135deg, #7dd3fc, #c4b5fd);
+}
+
+.provider-form .btn-cancel {
+  color: #cbd5e1;
+  background: rgba(30, 41, 59, 0.7);
+}
+
+.provider-form .form-actions button:hover {
+  filter: brightness(1.08);
+}
+
 @media (max-width: 680px) {
   .hero,
   .hero-actions,
@@ -530,6 +744,19 @@ footer {
 
   .providers {
     grid-template-columns: 1fr;
+  }
+
+  .provider-list-item {
+    flex-wrap: wrap;
+  }
+
+  .provider-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .provider-form .form-row {
+    flex-direction: column;
   }
 
   .search-box {
