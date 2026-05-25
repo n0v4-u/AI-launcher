@@ -15,18 +15,73 @@ function getIconPath(name: string) {
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 
+type Provider = {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  mode: 'external' | 'direct';
+  urlTemplate?: string;
+  needsClipboard?: boolean;
+};
+
 type AiConfig = {
   apiKey: string;
   apiUrl: string;
   model: string;
   hotkey: string;
+  providers: Provider[];
 };
+
+const defaultProviders: Provider[] = [
+  {
+    id: 'direct',
+    name: '直接发送',
+    description: '在当前窗口调用 OpenAI 兼容 API，直接返回文本结果',
+    icon: 'send',
+    mode: 'direct',
+  },
+  {
+    id: 'chatgpt',
+    name: 'ChatGPT',
+    description: '适合通用问答、写作、翻译和代码辅助',
+    icon: 'sparkles',
+    mode: 'external',
+    urlTemplate: 'https://chat.openai.com/?q={query}',
+  },
+  {
+    id: 'claude',
+    name: 'Claude',
+    description: '适合长文档分析、产品思考和代码审查',
+    icon: 'brain-circuit',
+    mode: 'external',
+    urlTemplate: 'https://claude.ai/new?q={query}',
+  },
+  {
+    id: 'perplexity',
+    name: 'Perplexity',
+    description: '适合联网搜索、资料调研和来源引用',
+    icon: 'globe',
+    mode: 'external',
+    urlTemplate: 'https://www.perplexity.ai/search?q={query}',
+  },
+  {
+    id: 'gemini',
+    name: 'Gemini',
+    description: 'Gemini 不稳定支持 URL 预填，已自动复制问题供粘贴',
+    icon: 'message-square-text',
+    mode: 'external',
+    needsClipboard: true,
+    urlTemplate: 'https://gemini.google.com/app',
+  },
+];
 
 const defaultAiConfig: AiConfig = {
   apiKey: '',
   apiUrl: 'https://api.openai.com/v1/chat/completions',
   model: 'gpt-4o-mini',
   hotkey: 'CommandOrControl+Shift+Space',
+  providers: defaultProviders,
 };
 
 function getConfigPath() {
@@ -42,9 +97,10 @@ async function readAiConfig(): Promise<AiConfig> {
       apiUrl: saved.apiUrl ?? defaultAiConfig.apiUrl,
       model: saved.model ?? defaultAiConfig.model,
       hotkey: saved.hotkey ?? defaultAiConfig.hotkey,
+      providers: saved.providers ?? defaultProviders,
     };
   } catch {
-    return defaultAiConfig;
+    return { ...defaultAiConfig, providers: defaultProviders };
   }
 }
 
@@ -54,6 +110,7 @@ async function saveAiConfig(config: AiConfig) {
     apiUrl: config.apiUrl.trim() || defaultAiConfig.apiUrl,
     model: config.model.trim() || defaultAiConfig.model,
     hotkey: config.hotkey.trim() || defaultAiConfig.hotkey,
+    providers: config.providers ?? defaultProviders,
   };
   await fs.mkdir(path.dirname(getConfigPath()), { recursive: true });
   await fs.writeFile(getConfigPath(), JSON.stringify(normalized, null, 2), 'utf-8');
@@ -126,6 +183,15 @@ function createWindow() {
     if (!mainWindow?.webContents.isDevToolsOpened()) {
       mainWindow?.hide();
     }
+  });
+
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    console.error(`[main] Failed to load ${validatedURL}: ${errorDescription} (code=${errorCode}), retrying in 2s...`);
+    setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.loadURL(validatedURL);
+      }
+    }, 2000);
   });
 
   if (isDev) {
@@ -305,6 +371,11 @@ app.whenReady().then(async () => {
       refreshTrayMenu();
     }
     return saved;
+  });
+  ipcMain.handle('ai:save-providers', async (_event, providers: Provider[]) => {
+    const config = await readAiConfig();
+    config.providers = providers;
+    await saveAiConfig(config);
   });
   ipcMain.handle('ai:send-direct', async (_event, prompt: string) => sendDirectPrompt(prompt));
   ipcMain.on('ai:send-direct-stream', (_event, prompt: string) => {

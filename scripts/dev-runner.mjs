@@ -1,8 +1,17 @@
 import { spawn } from 'node:child_process';
 import net from 'node:net';
 
-const npmCli = process.env.npm_execpath || (process.platform === 'win32' ? 'npm.cmd' : 'npm');
+// Electron 镜像加速（淘宝镜像）
+process.env.ELECTRON_MIRROR = 'https://npmmirror.com/mirrors/electron/';
+process.env.ELECTRON_BUILDER_BINARIES_MIRROR = 'https://npmmirror.com/mirrors/electron-builder-binaries/';
+
 const nodeCommand = process.execPath;
+const npmExecPath = process.env.npm_execpath;
+const npmCmd = npmExecPath
+  ? [nodeCommand, npmExecPath]
+  : process.platform === 'win32'
+    ? ['npm.cmd']
+    : ['npm'];
 const viteUrl = 'http://127.0.0.1:5173';
 
 let shuttingDown = false;
@@ -10,7 +19,8 @@ let viteProcess;
 let electronProcess;
 
 function run(command, args, name) {
-  const child = spawn(command, args, {
+  const cmdline = [command, ...args].map((a) => (a.includes(' ') ? `"${a}"` : a)).join(' ');
+  const child = spawn(cmdline, {
     stdio: 'inherit',
     shell: true,
     windowsHide: false,
@@ -37,7 +47,8 @@ function run(command, args, name) {
 
 function runAndWait(command, args, name) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
+    const cmdline = [command, ...args].map((a) => (a.includes(' ') ? `"${a}"` : a)).join(' ');
+    const child = spawn(cmdline, {
       stdio: 'inherit',
       shell: true,
       windowsHide: false,
@@ -80,6 +91,24 @@ function waitForPort(host, port, timeoutMs = 30000) {
   });
 }
 
+async function waitForHttp(url, timeoutMs = 60000) {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const response = await fetch(url);
+      if (response.ok) {
+        return;
+      }
+    } catch {
+      // not ready yet
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  throw new Error(`Timed out waiting for HTTP response from ${url}.`);
+}
+
 function stopProcess(child) {
   if (!child || child.killed) {
     return;
@@ -115,16 +144,18 @@ process.on('uncaughtException', (error) => {
 });
 
 console.log('Building Electron main process...');
-await runAndWait(nodeCommand, [npmCli, 'run', 'build:electron'], 'electron build');
+await runAndWait(npmCmd[0], [...npmCmd.slice(1), 'run', 'build:electron'], 'electron build');
 
 console.log('Starting Vite dev server...');
-viteProcess = run(nodeCommand, [npmCli, 'run', 'dev'], 'vite');
+viteProcess = run(npmCmd[0], [...npmCmd.slice(1), 'run', 'dev'], 'vite');
 
 try {
   await waitForPort('127.0.0.1', 5173);
   console.log(`Vite is ready at ${viteUrl}`);
+  console.log('Waiting for Vite to serve content...');
+  await waitForHttp(viteUrl);
   console.log('Starting Electron...');
-  electronProcess = run(nodeCommand, [npmCli, 'exec', '--', 'electron', '.'], 'electron');
+  electronProcess = run(npmCmd[0], [...npmCmd.slice(1), 'exec', '--', 'electron', '.'], 'electron');
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   shutdown(1);

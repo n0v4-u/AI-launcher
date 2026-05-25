@@ -60,6 +60,7 @@ type AiConfig = {
   apiUrl: string;
   model: string;
   hotkey: string;
+  providers?: Provider[];
 };
 
 const iconMap: Record<string, React.ComponentType<{ size?: number }>> = {
@@ -177,6 +178,7 @@ export function App() {
   const hotkeyInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const thinkingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const providersLoadedRef = useRef(false);
 
   const selectedProvider = useMemo(
     () => providers.find((provider) => provider.id === selectedProviderId) ?? providers[0],
@@ -185,11 +187,26 @@ export function App() {
 
   useEffect(() => {
     window.aiLauncher?.getHotkey().then(setHotkey).catch(() => undefined);
-    window.aiLauncher?.getAiConfig().then(setConfig).catch(() => undefined);
+    window.aiLauncher?.getAiConfig().then((cfg) => {
+      setConfig(cfg);
+      if (cfg.providers && cfg.providers.length > 0) {
+        setProviders(cfg.providers);
+      }
+      providersLoadedRef.current = true;
+    }).catch(() => {
+      providersLoadedRef.current = true;
+    });
     return window.aiLauncher?.onFocusInput(() => {
       setTimeout(() => inputRef.current?.focus(), 50);
     });
   }, []);
+
+  useEffect(() => {
+    if (!providersLoadedRef.current || !window.aiLauncher) return;
+    window.aiLauncher.saveProviders(providers).catch((err) => {
+      console.error('Failed to auto-save providers:', err);
+    });
+  }, [providers]);
 
   const handleAnswerClick = useCallback((e: React.MouseEvent) => {
     const btn = (e.target as HTMLElement).closest('.code-copy-btn') as HTMLButtonElement | null;
@@ -321,8 +338,8 @@ export function App() {
     }
 
     try {
-      const saved = await window.aiLauncher.saveAiConfig(config);
-      setConfig(saved);
+      const saved = await window.aiLauncher.saveAiConfig({ ...config, providers });
+      setConfig({ apiKey: saved.apiKey, apiUrl: saved.apiUrl, model: saved.model, hotkey: saved.hotkey });
       setHotkey(saved.hotkey);
       setStatus('✨ 配置已保存，尽情使用吧~');
       setShowConfig(false);
@@ -518,7 +535,7 @@ export function App() {
               <div className="config-title">
                 <div>
                   <strong>AI 服务管理</strong>
-                  <p>添加、编辑、删除或排序可用的 AI 服务。修改即时生效，重启后恢复默认。</p>
+                  <p>添加、编辑、删除或排序可用的 AI 服务。修改自动保存，重启后仍然保留。</p>
                 </div>
                 {!isAddingProvider && (
                   <button type="button" onClick={handleStartAdd}>

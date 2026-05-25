@@ -6,7 +6,8 @@ contextBridge.exposeInMainWorld('aiLauncher', {
   openExternal: (url: string) => ipcRenderer.invoke('app:open-external', url),
   writeClipboard: (text: string) => ipcRenderer.invoke('app:write-clipboard', text),
   getAiConfig: () => ipcRenderer.invoke('ai:get-config'),
-  saveAiConfig: (config: { apiKey: string; apiUrl: string; model: string }) => ipcRenderer.invoke('ai:save-config', config),
+  saveAiConfig: (config: { apiKey: string; apiUrl: string; model: string; hotkey: string }) => ipcRenderer.invoke('ai:save-config', config),
+  saveProviders: (providers: Array<{ id: string; name: string; description: string; icon: string; mode: string; urlTemplate?: string; needsClipboard?: boolean }>) => ipcRenderer.invoke('ai:save-providers', providers),
   sendDirect: (prompt: string) => ipcRenderer.invoke('ai:send-direct', prompt),
   sendDirectStream: (
     prompt: string,
