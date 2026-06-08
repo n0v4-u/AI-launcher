@@ -18,7 +18,7 @@ AI Launcher 是一个桌面端全局快捷键 AI 启动器。
 - 📝 多行输入支持（Shift+Enter 换行，Enter 发送）
 - 🎨 AI 回复支持 Markdown 渲染，代码块一键复制
 - 🖥️ 系统托盘常驻
-- 🚀 支持开机自启动
+- 🚀 支持开机自启动（需打包安装后生效）
 - 📦 已配置基础打包脚本，可直接安装作为桌面应用
 
 ---
@@ -99,7 +99,17 @@ npm run package
 
 ```text
 release/
+├── AI Launcher Setup 0.1.0.exe   ← 安装包
+└── win-unpacked/                  ← 绿色便携版（可直接运行）
 ```
+
+> 💡 **中国大陆用户**：打包时需要从 GitHub 下载 Electron 和工具链，建议设置镜像加速：
+>
+> ```bash
+> export ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
+> export ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/
+> npm run package
+> ```
 
 ---
 

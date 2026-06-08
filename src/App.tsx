@@ -14,7 +14,6 @@ import {
   Eye,
   EyeOff,
   Globe2,
-  Keyboard,
   Lightbulb,
   MessageSquareText,
   Pencil,
@@ -468,16 +467,11 @@ export function App() {
     <main className="app-shell">
       <section className="launcher-card">
         <div className="hero">
-          <div>
-            <p className="eyebrow"><Zap size={16} /> AI Launcher</p>
-            <h1>一个快捷键，直达你的 AI 工作流</h1>
-            <p className="subtitle">按下快捷键输入问题，选择模型，可跳转网页，也可直接发送文本。</p>
-          </div>
+          <p className="eyebrow"><Zap size={16} /> AI Launcher</p>
           <div className="hero-actions">
             <button className="config-toggle" type="button" onClick={() => setShowConfig((value) => !value)}>
               <Settings size={17} /> 配置
             </button>
-            <div className="hotkey-pill"><Keyboard size={18} /> {hotkey}</div>
           </div>
         </div>
 
@@ -825,11 +819,6 @@ export function App() {
             );
           })}
         </div>
-
-        <footer>
-          <span>Enter 启动 / 发送</span>
-          <span>直接发送可在界面配置</span>
-        </footer>
       </section>
     </main>
   );
