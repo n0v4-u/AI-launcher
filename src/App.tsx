@@ -60,6 +60,7 @@ type AiConfig = {
   apiUrl: string;
   model: string;
   hotkey: string;
+  autoLaunch: boolean;
   providers?: Provider[];
 };
 
@@ -114,6 +115,7 @@ const defaultConfig: AiConfig = {
   apiUrl: 'https://api.openai.com/v1/chat/completions',
   model: 'gpt-4o-mini',
   hotkey: 'CommandOrControl+Shift+Space',
+  autoLaunch: false,
 };
 
 const defaultProviders: Provider[] = [
@@ -174,6 +176,7 @@ export function App() {
   const [providers, setProviders] = useState<Provider[]>(defaultProviders);
   const [editingProviderId, setEditingProviderId] = useState<string | null>(null);
   const [isAddingProvider, setIsAddingProvider] = useState(false);
+  const [isPackaged, setIsPackaged] = useState(true); // assume packaged unless told otherwise
   const [providerForm, setProviderForm] = useState<Partial<Provider>>({});
   const hotkeyInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -196,6 +199,9 @@ export function App() {
     }).catch(() => {
       providersLoadedRef.current = true;
     });
+    window.aiLauncher?.getAutoLaunch().then((info) => {
+      setIsPackaged(info.isPackaged);
+    }).catch(() => undefined);
     return window.aiLauncher?.onFocusInput(() => {
       setTimeout(() => inputRef.current?.focus(), 50);
     });
@@ -339,7 +345,7 @@ export function App() {
 
     try {
       const saved = await window.aiLauncher.saveAiConfig({ ...config, providers });
-      setConfig({ apiKey: saved.apiKey, apiUrl: saved.apiUrl, model: saved.model, hotkey: saved.hotkey });
+      setConfig({ apiKey: saved.apiKey, apiUrl: saved.apiUrl, model: saved.model, hotkey: saved.hotkey, autoLaunch: saved.autoLaunch });
       setHotkey(saved.hotkey);
       setStatus('✨ 配置已保存，尽情使用吧~');
       setShowConfig(false);
@@ -511,6 +517,29 @@ export function App() {
                   className={recording ? 'recording' : ''}
                 />
               </label>
+              <div className="auto-launch-row">
+                <span>开机自启动 {!isPackaged && <em className="dev-hint">打包安装后生效</em>}</span>
+                <div className="auto-launch-toggle">
+                  <span>{config.autoLaunch ? '已开启' : '已关闭'}</span>
+                  <button
+                    type="button"
+                    className={`toggle-switch ${config.autoLaunch ? 'active' : ''}`}
+                    disabled={!isPackaged}
+                    onClick={async () => {
+                      const newValue = !config.autoLaunch;
+                      setConfig((current) => ({ ...current, autoLaunch: newValue }));
+                      try {
+                        await window.aiLauncher?.setAutoLaunch(newValue);
+                      } catch (err) {
+                        setConfig((current) => ({ ...current, autoLaunch: !newValue }));
+                        console.error('Failed to set auto-launch:', err);
+                      }
+                    }}
+                  >
+                    <span className="toggle-knob" />
+                  </button>
+                </div>
+              </div>
               <label>
                 <span>API 地址</span>
                 <input

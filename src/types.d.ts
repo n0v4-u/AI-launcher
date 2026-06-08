@@ -15,6 +15,7 @@ type AiConfig = {
   apiUrl: string;
   model: string;
   hotkey: string;
+  autoLaunch: boolean;
   providers?: Provider[];
 };
 
@@ -27,6 +28,8 @@ declare global {
       writeClipboard: (text: string) => Promise<void>;
       getAiConfig: () => Promise<AiConfig>;
       saveAiConfig: (config: AiConfig) => Promise<AiConfig>;
+      getAutoLaunch: () => Promise<{ enabled: boolean; isPackaged: boolean }>;
+      setAutoLaunch: (enabled: boolean) => Promise<boolean>;
       saveProviders: (providers: Provider[]) => Promise<void>;
       sendDirect: (prompt: string) => Promise<string>;
       sendDirectStream: (

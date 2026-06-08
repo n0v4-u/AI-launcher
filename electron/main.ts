@@ -30,6 +30,7 @@ type AiConfig = {
   apiUrl: string;
   model: string;
   hotkey: string;
+  autoLaunch: boolean;
   providers: Provider[];
 };
 
@@ -81,6 +82,7 @@ const defaultAiConfig: AiConfig = {
   apiUrl: 'https://api.openai.com/v1/chat/completions',
   model: 'gpt-4o-mini',
   hotkey: 'CommandOrControl+Shift+Space',
+  autoLaunch: false,
   providers: defaultProviders,
 };
 
@@ -97,6 +99,7 @@ async function readAiConfig(): Promise<AiConfig> {
       apiUrl: saved.apiUrl ?? defaultAiConfig.apiUrl,
       model: saved.model ?? defaultAiConfig.model,
       hotkey: saved.hotkey ?? defaultAiConfig.hotkey,
+      autoLaunch: saved.autoLaunch ?? false,
       providers: saved.providers ?? defaultProviders,
     };
   } catch {
@@ -110,6 +113,7 @@ async function saveAiConfig(config: AiConfig) {
     apiUrl: config.apiUrl.trim() || defaultAiConfig.apiUrl,
     model: config.model.trim() || defaultAiConfig.model,
     hotkey: config.hotkey.trim() || defaultAiConfig.hotkey,
+    autoLaunch: config.autoLaunch ?? false,
     providers: config.providers ?? defaultProviders,
   };
   await fs.mkdir(path.dirname(getConfigPath()), { recursive: true });
@@ -347,6 +351,11 @@ app.whenReady().then(async () => {
   const config = await readAiConfig();
   hotkey = config.hotkey;
 
+  // Sync auto-launch setting with OS (only in production builds)
+  if (config.autoLaunch && app.isPackaged) {
+    app.setLoginItemSettings({ openAtLogin: true });
+  }
+
   createWindow();
   createTray();
 
@@ -356,6 +365,19 @@ app.whenReady().then(async () => {
   }
 
   ipcMain.handle('app:get-hotkey', () => hotkey);
+  ipcMain.handle('app:get-auto-launch', async () => {
+    const config = await readAiConfig();
+    return { enabled: config.autoLaunch ?? false, isPackaged: app.isPackaged };
+  });
+  ipcMain.handle('app:set-auto-launch', async (_event, enabled: boolean) => {
+    if (app.isPackaged) {
+      app.setLoginItemSettings({ openAtLogin: enabled });
+    }
+    const config = await readAiConfig();
+    config.autoLaunch = enabled;
+    await saveAiConfig(config);
+    return enabled;
+  });
   ipcMain.handle('app:hide', () => mainWindow?.hide());
   ipcMain.handle('app:open-external', async (_event, url: string) => {
     await shell.openExternal(url);
